@@ -556,10 +556,13 @@ public class BuildMojo extends AbstractDockerMojo {
       }
 
       final List<String> copiedPaths = newArrayList();
+      
+      boolean copyWholeDir = includes.isEmpty() && excludes.isEmpty() && 
+              resource.getTargetPath() != null;
 
+      final String targetPath = resource.getTargetPath() == null ? "" : resource.getTargetPath();
       for (String included : scanner.getIncludedFiles()) {
         final Path sourcePath = Paths.get(resource.getDirectory(), included);
-        final String targetPath = resource.getTargetPath() == null ? "" : resource.getTargetPath();
         final Path destPath = Paths.get(destination, targetPath, included);
         getLog().info(String.format("Copying %s -> %s", sourcePath, destPath));
         // ensure all directories exist because copy operation will fail if they don't
@@ -567,8 +570,16 @@ public class BuildMojo extends AbstractDockerMojo {
         Files.copy(sourcePath, destPath, StandardCopyOption.REPLACE_EXISTING);
         Files.setLastModifiedTime(destPath, FileTime.fromMillis(0));
         // file location relative to docker directory, used later to generate Dockerfile
-        final Path relativePath = Paths.get(targetPath, included);
-        copiedPaths.add(relativePath.toString());
+        
+        if (!copyWholeDir) {
+            final Path relativePath = Paths.get(targetPath, included);
+            copiedPaths.add(relativePath.toString());
+        }
+      }
+      
+      if (copyWholeDir) {
+          final Path relativePath = Paths.get(targetPath);
+          copiedPaths.add(relativePath.toString());
       }
 
       // The list of included files returned from DirectoryScanner can be in a different order
